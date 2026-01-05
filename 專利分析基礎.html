@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>專利分析 Flashcards</title>
+  <style>
+    body{margin:0;font-family:system-ui,-apple-system,"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;background:#f6f7f8;color:#222}
+    .wrap{max-width:980px;margin:auto;padding:20px}
+    h1{margin:0 0 10px;font-size:20px}
+    .meta{font-size:13px;color:#555;margin-bottom:10px;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    .pill{display:inline-block;padding:4px 10px;border:1px solid #ddd;border-radius:999px;background:#fff}
+    .card{background:#fff;border-radius:14px;padding:28px;min-height:260px;box-shadow:0 6px 20px rgba(0,0,0,.08);cursor:pointer;user-select:none}
+    .label{font-size:12px;letter-spacing:.08em;color:#666;margin-bottom:8px}
+    .front{font-size:24px;font-weight:750;line-height:1.45;white-space:pre-wrap}
+    .back{font-size:18px;line-height:1.7;white-space:pre-wrap;display:none}
+    .controls{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;align-items:center}
+    button{padding:10px 14px;border-radius:10px;border:1px solid #ccc;background:#fff;cursor:pointer;font-size:14px}
+    button:hover{background:#f0f0f0}
+    .hint{font-size:12px;color:#666;margin-top:8px}
+  </style>
+</head>
+
+<body>
+<div class="wrap">
+  <h1>專利分析 Flashcards</h1>
+  <div class="meta">
+    <span class="pill" id="countPill"></span>
+    <span class="pill" id="progressPill"></span>
+    <span class="pill" id="sidePill"></span>
+  </div>
+
+  <div class="card" id="card" tabindex="0" role="button" aria-label="Flashcard">
+    <div class="label" id="label">問題</div>
+    <div class="front" id="front"></div>
+    <div class="back" id="back"></div>
+  </div>
+
+  <div class="controls">
+    <button type="button" onclick="prev()">← 上一題</button>
+    <button type="button" onclick="flip()">翻面</button>
+    <button type="button" onclick="next()">下一題 →</button>
+    <button type="button" onclick="shuffle()">隨機</button>
+    <button type="button" onclick="resetOrder()">重設順序</button>
+  </div>
+
+  <div class="hint">
+    點擊卡片或按 Space 翻面 ｜ ← / → 換題 ｜ S 隨機 ｜ R 重設
+  </div>
+</div>
+
+<script>
+const CARDS = [
+  { term: "廣義而言，「專利分析」（patent analysis）係指何種分析工作？", def: "指以專利資料為對象的各類分析工作。" },
+  { term: "本書所探討的「狹義專利分析」具有哪三項主要特徵？", def: "1. 通常涉及相當數量的案件；2. 通常涉及視覺化圖表的產出；3. 目的通常在於掌握研發活動情況。" },
+  { term: "在狹義專利分析中，「相當數量」的案件規模通常被理解為什麼？", def: "一種不適合以人工方式逐件閱讀與整理分析的規模，必須仰賴系統化方法與工具處理。" },
+  { term: "由於狹義專利分析常產出視覺化圖表，因此在實務與文獻中亦常被稱為_____。", def: "專利地圖（patent map或patent landscape）" },
+  { term: "狹義專利分析旨在掌握的「研發活動情況」，可能指涉哪些對象？", def: "特定機構（如競爭對手）、特定技術領域、特定產業，乃至特定國家或區域。" },
+  { term: "專利分析的過程，可對應至大數據分析中常見的哪三個處理層次或階段？", def: "資料（data）、資訊（information）與情報（intelligence）。" },
+  { term: "在專利分析的「資料階段」，其主要的工作內容為何？", def: "進行資料清理（data cleaning）作業，為後續分析建立可靠的資料基礎。" },
+  { term: "請舉出三項在專利分析「資料階段」中常見的資料清理工作。", def: "排除重複案件、篩選所需案件、錯誤數據更正、數據格式統一、或名稱一致化處理。（任舉三項即可）" },
+  { term: "在專利分析的「資訊階段」，其主要任務是將大量專利資料轉化成什麼形式？", def: "轉化為以表格、圖形或其他視覺化方式呈現的描述性資訊。" },
+  { term: "專利分析的「情報階段」涉及將資訊轉化為什麼？", def: "轉化為對研發活動的解釋與推論，進而從中萃取可據以行動的情報。" },
+  { term: "專利分析工作的正確起點應該由什麼出發？", def: "應由「所需情報」出發，先確定欲獲取的情報內容。" },
+  { term: "專利分析的核心價值在於將大量分散的專利資料，逐步轉化為什麼？", def: "轉化為可供研發管理或策略決策參考的情報。" },
+  { term: "在專利分析的實務操作中，資料、資訊、情報三個階段的關係為何？", def: "並非線性完成，而是經常出現需自後一階段返回先前階段進行修正的循環情形。" },
+  { term: "本書提出的專利分析認知體系，是依循何種架構將專利資料欄位加以分類？", def: "5W架構（Who、When、Where、What、How）。" },
+  { term: "在專利分析的5W架構中，「Who」主要涉及哪些「人」的相關欄位？", def: "例如：發明人、申請人、審查人、代理人等。" },
+  { term: "在專利分析的5W架構中，「When」主要涉及哪些「時間」的相關欄位？", def: "例如：申請日、公開日、公告日、優先權日等。" },
+  { term: "在專利分析的5W架構中，「Where」主要涉及哪些「地點」的相關欄位？", def: "例如：發明人國籍、申請人國籍、受理的專利局等。" },
+  { term: "在專利分析的5W架構中，「What」主要涉及哪些「技術內容」的相關欄位？", def: "例如：專利分類號、專利名稱、摘要、請求項等。" },
+  { term: "在專利分析的5W架構中，「How」主要涉及哪些「案件關聯」的相關欄位？", def: "例如：參考文獻、專利家族代碼、優先權號等。" },
+  { term: "僅涉及單一欄位資料的分析方法，在本書中被統稱為_____。", def: "1W分析" },
+  { term: "同時涉及兩欄位資料的分析方法，在本書中被統稱為_____。", def: "2W分析" },
+  { term: "同時分析「申請人」欄位（Who）與「分類號」欄位（What）屬於哪一種類型的分析？", def: "2W分析（或稱為申請人技術分類分析）。" },
+  { term: "為何涉及三個維度以上的「3W分析」在實務上相當少見？", def: "因為超過兩維度的高維度分析與圖表難以處理與呈現。" },
+  { term: "專利分析所觀察到的研發活動，與現實中的研發活動之間，主要存在哪兩種類型的落差？", def: "時間上的落差，以及數量上的落差。" },
+  { term: "專利分析的「時間落差」是指分析者觀察到的專利情報，實際上反映的是何時的研發活動？", def: "反映的是過去某個時間點（T1）甚至更早之前的研發活動，而非分析當下（T2）的狀態。" },
+  { term: "所有專利分析為克服「時間落差」的侷限，皆隱含了一項關於研發活動的重要假設為何？", def: "研發活動具有一定程度的「慣性」，常呈現一定的持續性而無法瞬間改變方向。" },
+  { term: "為何說專利分析完成之時，也正是其所產出情報開始過期之時？", def: "因為分析標的後續提出的新專利案件無法被納入，可能改變原分析情報，使其逐漸失去價值。" },
+  { term: "專利分析的「數量落差」是指什麼？", def: "指分析者所能蒐集並納入分析的專利案件，無法完整代表所有的研發活動。" },
+  { term: "請舉出造成專利分析「數量落差」的兩個主要因素。", def: "1. 專利並非保護研發成果的唯一手段；2. 專利局的審查與過濾；3. 專利檢索的先天限制。（任舉兩項即可）" },
+  { term: "所有專利分析為克服「數量落差」的侷限，皆隱含了哪一項重要假設？", def: "檢索所得的專利資料足以作為代表整體研發成果的合理縮影。" },
+  { term: "分析他人專利報告時，判斷其分析結果是否可信的重要依據為何？", def: "探究該分析所隱含的假設內容，並評估這些假設是否合理。" },
+  { term: "本書將被分析的特定機構、技術領域、產業、國家或區域，統稱為專利分析的_____。", def: "分析標的" },
+  { term: "專利資料層面可能導致分析結果產生系統性偏誤的因素主要有哪三種？", def: "數量的膨脹、比較基準的不同、以及在地效應的影響。" },
+  { term: "何謂專利分析中的「數量膨脹」現象？", def: "指分析者蒐集到的專利案件數量，因專利家族等因素而大於實際的研發創作數量。" },
+  { term: "造成專利案件「數量膨脹」的最主要來源是什麼？", def: "申請人就同一研發創作所形成的專利家族（包含國內家族與國際家族）。" },
+  { term: "在進行跨國專利分析時，為何數量膨脹的問題通常會比僅分析單一國家更嚴重？", def: "因為同一創作進行跨國佈局，會在多國衍生各自的國內家族，使家族成員數量倍數成長。" },
+  { term: "在專利分析中，若將發明、新型、設計等不同類型的專利混合分析，會產生何種系統性偏誤？", def: "比較基準的不同，因為各類型專利反映的研發投入、創新深度與審查門檻均有顯著差異。" },
+  { term: "何謂專利分析中的「在地效應」？", def: "指申請人基於對本國制度熟悉、成本較低等因素，通常會優先於本國提出專利申請，導致本國申請量明顯較高。" },
+  { term: "若僅以單一國家專利資料進行分析，「在地效應」可能導致何種誤判？", def: "可能導致誤判「該國家在相關技術投入最多或耕耘最深」，因其案件量排名在前者多為本地申請人。" },
+  { term: "當分析特定機構的整體研發趨勢時，為降低國際家族造成的數量膨脹，優先考慮蒐集的案件範圍為何？", def: "僅蒐集該機構於其本國或主要營運地區所提出的專利案件。" },
+  { term: "分析特定技術領域或產業時，若不便蒐集多國資料，實務上常見的替代策略為何？", def: "選擇一個具高度代表性的國家（如美國），僅以其專利案件作為該領域的縮影進行分析。" },
+  { term: "為何美國常被選為分析特定技術領域時的代表性國家？", def: "因為其市場龐大、專利制度完善，且吸引全球各國申請人將重要研發成果在此申請專利，使在地效應影響相對有限。" },
+  { term: "當分析標的為特定國家自身的研發活動時，案件蒐集範圍通常宜限縮為何？", def: "限縮為該國申請人於其本國所提出的專利申請案件。" },
+  { term: "在實務操作中，如何界定一件專利為「本國申請人所提出之案件」？", def: "該案件的多個申請人中，至少包含一名本國申請人。" },
+  { term: "為最貼近實際研發創作的產出情形，專利分析最理想的分析單位為何？", def: "以專利家族作為分析單位。" },
+  { term: "若檢索系統不支援家族彙整功能，分析者退而求其次的分析單位通常為何？", def: "以個別專利案件為分析對象，且通常僅納入單一專利案件類型（如發明專利）。" },
+  { term: "在進行發明專利分析時，為何建議應同時納入「公告案」與「公開案」？", def: "因為申請中或核駁的公開案仍是研發成果，且其時間落差最短，有助於縮小分析與現實的差距。" },
+  { term: "當分析資料同時包含公開案與其對應的公告案時，應進行何種處理以避免數量膨脹？", def: "應進行適當的「去重」處理，避免同一發明被重複計算。" },
+  { term: "相較於僅針對少數特定案件的侵害鑑定分析，狹義專利分析的目的通常著眼於什麼？", def: "掌握研發投入與產出的整體結構與分布情況。" },
+  { term: "在專利分析的「資料階段」，進行申請人名稱的_____處理是資料清理的關鍵步驟之一。", def: "一致化" },
+  { term: "分析者在判讀視覺化圖表時，若發現出乎意料的「異常」情形，應採取的正確態度為何？", def: "不應忽略，反而應返回先前階段（如資料清理或檢索），探索「異常」情形的發生原因。" },
+  { term: "理論上，五種W資料欄位類型彼此交叉，可形成多少類不同組合的2W分析方式？", def: "5×5，共25類。" },
+  { term: "在專利分析中，何謂「排擠效應」？", def: "指特定申請人族群因其整體體量遠大於其他族群，使其專利案件數量在整體資料中佔據壓倒性比例，掩蓋其他族群的研發活動。" },
+  { term: "面對「排擠效應」時，分析者可考慮將分析工作分解為哪兩個層次？", def: "其一為納入所有案件的整體分析；其二為排除該特定族群案件後所進行的輔助分析。" },
+  { term: "若欲比較我國台積電與美國Intel的研發活動，一種較為公平的資料選擇方式為何？", def: "分析台積電時採用其在我國的專利，分析Intel時則採用其在美國的專利，並分開分析後比較。" },
+  { term: "僅以單一國家專利案件進行分析，雖可緩解_____家族造成的數量膨脹，但仍無法排除_____家族導致的案件膨脹。", def: "國際、國內" }
+];
+
+let order = [...CARDS.keys()];
+let i = 0;
+let flipped = false;
+
+const front = document.getElementById("front");
+const back = document.getElementById("back");
+const label = document.getElementById("label");
+const countPill = document.getElementById("countPill");
+const progressPill = document.getElementById("progressPill");
+const sidePill = document.getElementById("sidePill");
+
+function render() {
+  countPill.textContent = `${order.length} cards`;
+  progressPill.textContent = `第 ${i+1} / ${order.length} 題`;
+  sidePill.textContent = flipped ? "答案" : "問題";
+
+  const c = CARDS[order[i]];
+  if (flipped) {
+    label.textContent = "答案";
+    back.textContent = c.def;
+    back.style.display = "block";
+    front.style.display = "none";
+  } else {
+    label.textContent = "問題";
+    front.textContent = c.term;
+    front.style.display = "block";
+    back.style.display = "none";
+  }
+}
+
+function flip() { flipped = !flipped; render(); }
+function next() { i = (i + 1) % order.length; flipped = false; render(); }
+function prev() { i = (i - 1 + order.length) % order.length; flipped = false; render(); }
+
+function shuffle() {
+  // Fisher-Yates
+  for (let k = order.length - 1; k > 0; k--) {
+    const j = Math.floor(Math.random() * (k + 1));
+    [order[k], order[j]] = [order[j], order[k]];
+  }
+  i = 0; flipped = false; render();
+}
+function resetOrder() { order = [...CARDS.keys()]; i = 0; flipped = false; render(); }
+
+document.getElementById("card").onclick = flip;
+document.addEventListener("keydown", e => {
+  const tag = (document.activeElement?.tagName || "").toLowerCase();
+  if (tag === "input" || tag === "textarea" || tag === "select") return;
+
+  if (e.key === " ") { e.preventDefault(); flip(); }
+  if (e.key === "ArrowRight") next();
+  if (e.key === "ArrowLeft") prev();
+  if (e.key.toLowerCase() === "s") shuffle();
+  if (e.key.toLowerCase() === "r") resetOrder();
+});
+
+render();
+</script>
+</body>
+</html>
