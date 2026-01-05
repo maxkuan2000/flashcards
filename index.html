@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>專利分析 Flashcards</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, "Noto Sans TC", "PingFang TC",
+                   "Microsoft JhengHei", sans-serif;
+      background: #f6f7f8;
+      color: #222;
+    }
+    .wrap {
+      max-width: 900px;
+      margin: auto;
+      padding: 20px;
+    }
+    h1 {
+      margin: 0 0 10px;
+      font-size: 20px;
+    }
+    .meta {
+      font-size: 13px;
+      color: #555;
+      margin-bottom: 10px;
+    }
+    .card {
+      background: white;
+      border-radius: 14px;
+      padding: 28px;
+      min-height: 240px;
+      box-shadow: 0 6px 20px rgba(0,0,0,.08);
+      cursor: pointer;
+      user-select: none;
+    }
+    .label {
+      font-size: 12px;
+      letter-spacing: .08em;
+      color: #666;
+      margin-bottom: 8px;
+    }
+    .front {
+      font-size: 26px;
+      font-weight: 700;
+      line-height: 1.4;
+    }
+    .back {
+      font-size: 18px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      display: none;
+    }
+    .controls {
+      display: flex;
+      gap: 10px;
+      margin-top: 14px;
+      flex-wrap: wrap;
+    }
+    button {
+      padding: 10px 14px;
+      border-radius: 10px;
+      border: 1px solid #ccc;
+      background: #fff;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    button:hover {
+      background: #f0f0f0;
+    }
+    .hint {
+      font-size: 12px;
+      color: #666;
+      margin-top: 8px;
+    }
+  </style>
+</head>
+
+<body>
+<div class="wrap">
+  <h1>專利分析 Flashcards</h1>
+  <div class="meta" id="meta"></div>
+
+  <div class="card" id="card" tabindex="0">
+    <div class="label" id="label">問題</div>
+    <div class="front" id="front"></div>
+    <div class="back" id="back"></div>
+  </div>
+
+  <div class="controls">
+    <button onclick="prev()">← 上一題</button>
+    <button onclick="flip()">翻面</button>
+    <button onclick="next()">下一題 →</button>
+    <button onclick="shuffle()">隨機</button>
+    <button onclick="resetOrder()">重設順序</button>
+  </div>
+
+  <div class="hint">
+    點擊卡片或按 Space 翻面 ｜ ← / → 換題
+  </div>
+</div>
+
+<script>
+const CARDS = [
+  { term: "廣義而言，「專利分析」（patent analysis）係指何種分析工作？", def: "指以專利資料為對象的各類分析工作。" },
+  { term: "本書所探討的「狹義專利分析」具有哪三項主要特徵？", def: "1. 通常涉及相當數量的案件；2. 通常涉及視覺化圖表的產出；3. 目的通常在於掌握研發活動情況。" },
+  { term: "在狹義專利分析中，「相當數量」的案件規模通常被理解為什麼？", def: "一種不適合以人工方式逐件閱讀與整理分析的規模，必須仰賴系統化方法與工具處理。" },
+  { term: "由於狹義專利分析常產出視覺化圖表，因此在實務與文獻中亦常被稱為_____。", def: "專利地圖（patent map 或 patent landscape）。" },
+  { term: "狹義專利分析旨在掌握的「研發活動情況」，可能指涉哪些對象？", def: "特定機構、特定技術領域、特定產業，乃至特定國家或區域。" },
+  { term: "專利分析的過程，可對應至大數據分析中常見的哪三個處理層次或階段？", def: "資料（data）、資訊（information）與情報（intelligence）。" },
+  { term: "在專利分析的「資料階段」，其主要的工作內容為何？", def: "進行資料清理（data cleaning）作業，為後續分析建立可靠的資料基礎。" },
+  { term: "請舉出三項在專利分析「資料階段」中常見的資料清理工作。", def: "排除重複案件、篩選所需案件、錯誤數據更正、數據格式統一、名稱一致化處理（任舉三項）。" },
+  { term: "在專利分析的「資訊階段」，其主要任務為何？", def: "將大量專利資料轉化為以表格、圖形或其他視覺化方式呈現的描述性資訊。" },
+  { term: "專利分析的「情報階段」涉及將資訊轉化為什麼？", def: "轉化為對研發活動的解釋與推論，並萃取可據以行動的情報。" },
+  { term: "專利分析工作的正確起點應該由什麼出發？", def: "應由「所需情報」出發，先確定欲獲取的情報內容。" },
+  { term: "專利分析的核心價值在於將大量分散的專利資料，逐步轉化為什麼？", def: "轉化為可供研發管理或策略決策參考的情報。" },
+  { term: "在專利分析的實務操作中，資料、資訊、情報三個階段的關係為何？", def: "並非線性完成，而是經常需自後一階段返回先前階段進行修正的循環關係。" },
+  { term: "本書提出的專利分析認知體系，是依循何種架構？", def: "5W 架構（Who、When、Where、What、How）。" },
+  { term: "在專利分析的 5W 架構中，「Who」涉及哪些欄位？", def: "發明人、申請人、審查人、代理人等。" },
+  { term: "在專利分析中，僅涉及單一欄位資料的分析方法稱為？", def: "1W 分析。" },
+  { term: "同時涉及兩欄位資料的分析方法稱為？", def: "2W 分析。" },
+  { term: "為最貼近實際研發創作的產出情形，專利分析最理想的分析單位為何？", def: "以專利家族作為分析單位。" },
+  { term: "在專利分析中，何謂「排擠效應」？", def: "特定申請人族群因體量過大，使其案件數量掩蓋其他族群的研發活動。" }
+];
+
+let order = [...CARDS.keys()];
+let i = 0;
+let flipped = false;
+
+const front = document.getElementById("front");
+const back = document.getElementById("back");
+const label = document.getElementById("label");
+const meta = document.getElementById("meta");
+
+function render() {
+  const c = CARDS[order[i]];
+  meta.textContent = `第 ${i+1} / ${order.length} 題`;
+  if (flipped) {
+    label.textContent = "答案";
+    back.textContent = c.def;
+    back.style.display = "block";
+    front.style.display = "none";
+  } else {
+    label.textContent = "問題";
+    front.textContent = c.term;
+    front.style.display = "block";
+    back.style.display = "none";
+  }
+}
+
+function flip() {
+  flipped = !flipped;
+  render();
+}
+function next() {
+  i = (i + 1) % order.length;
+  flipped = false;
+  render();
+}
+function prev() {
+  i = (i - 1 + order.length) % order.length;
+  flipped = false;
+  render();
+}
+function shuffle() {
+  order.sort(() => Math.random() - 0.5);
+  i = 0;
+  flipped = false;
+  render();
+}
+function resetOrder() {
+  order = [...CARDS.keys()];
+  i = 0;
+  flipped = false;
+  render();
+}
+
+document.getElementById("card").onclick = flip;
+document.addEventListener("keydown", e => {
+  if (e.key === " ") { e.preventDefault(); flip(); }
+  if (e.key === "ArrowRight") next();
+  if (e.key === "ArrowLeft") prev();
+});
+
+render();
+</script>
+</body>
+</html>
