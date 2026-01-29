@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body{margin:0;font-family:system-ui,-apple-system,"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;background:#f6f7f8;color:#222}
+    .wrap{max-width:980px;margin:auto;padding:20px}
+    h1{margin:0 0 10px;font-size:20px}
+    .meta{font-size:13px;color:#555;margin-bottom:10px;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    .pill{display:inline-block;padding:4px 10px;border:1px solid #ddd;border-radius:999px;background:#fff}
+    .card{background:#fff;border-radius:14px;padding:28px;min-height:260px;box-shadow:0 6px 20px rgba(0,0,0,.08);cursor:pointer;user-select:none}
+    .label{font-size:12px;letter-spacing:.08em;color:#666;margin-bottom:8px}
+    .front{font-size:24px;font-weight:750;line-height:1.45;white-space:pre-wrap}
+    .back{font-size:18px;line-height:1.7;white-space:pre-wrap;display:none}
+    .controls{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;align-items:center}
+    button{padding:10px 14px;border-radius:10px;border:1px solid #ccc;background:#fff;cursor:pointer;font-size:14px}
+    button:hover{background:#f0f0f0}
+    .hint{font-size:12px;color:#666;margin-top:8px}
+  </style>
+</head>
+
+<body>
+<div class="wrap">
+  <div class="meta">
+    <span class="pill" id="countPill"></span>
+    <span class="pill" id="progressPill"></span>
+    <span class="pill" id="sidePill"></span>
+  </div>
+
+  <div class="card" id="card" tabindex="0" role="button" aria-label="Flashcard">
+    <div class="label" id="label">問題</div>
+    <div class="front" id="front"></div>
+    <div class="back" id="back"></div>
+  </div>
+
+  <div class="controls">
+    <button type="button" onclick="prev()">← 上一題</button>
+    <button type="button" onclick="flip()">翻面</button>
+    <button type="button" onclick="next()">下一題 →</button>
+    <button type="button" onclick="shuffle()">隨機</button>
+    <button type="button" onclick="resetOrder()">重設順序</button>
+  </div>
+
+  <div class="hint">
+    點擊卡片或按 Space 翻面 ｜ ← / → 換題 ｜ S 隨機 ｜ R 重設
+  </div>
+</div>
+
+<script>
+const CARDS = [
+  { term: "本書提出用以系統化分類專利分析方法的體系稱為什麼？", def: "5W 分析體系。" },
+  { term: "專利分析中，以專利案件的數量為主要觀察對象，藉以分析研發活動的規模、變化趨勢與分布情形，稱為什麼分析？", def: "件數分析。" },
+  { term: "在實務上，以數量為核心所產出的專利分析圖表常被稱為什麼？", def: "經營圖或管理圖。" },
+  { term: "在5W分析體系中，「Who」欄位指的是涉及_____的欄位。", def: "人" },
+  { term: "在5W分析體系中，發明人、申請人、審查人、代理人等欄位屬於哪一類？", def: "Who (涉及人的欄位)。" },
+  { term: "在5W分析體系中，「When」欄位指的是涉及_____的欄位。", def: "日期" },
+  { term: "在5W分析體系中，申請日、公開日、公告日、優先權日等欄位屬於哪一類？", def: "When (涉及日期的欄位)。" },
+  { term: "在5W分析體系中，「Where」欄位指的是涉及_____的欄位。", def: "地點" },
+  { term: "在5W分析體系中，發明人國籍、申請人國籍、受理的專利局等欄位屬於哪一類？", def: "Where (涉及地點的欄位)。" },
+  { term: "在5W分析體系中，「What」欄位指的是涉及_____的欄位。", def: "技術內容" },
+  { term: "在5W分析體系中，專利分類號、專利名稱、摘要、說明書等欄位屬於哪一類？", def: "What (涉及技術內容的欄位)。" },
+  { term: "在5W分析體系中，「How」欄位指的是涉及_____的欄位。", def: "案件關聯" },
+  { term: "在5W分析體系中，參考文獻、專利家族代碼、優先權號等欄位屬於哪一類？", def: "How (涉及案件關聯的欄位)。" },
+  { term: "本書所稱的「5W」分析體系，嚴格來說是哪五個構面？", def: "Who、When、Where、What、How (實為4W1H)。" },
+  { term: "僅涉及單一欄位資料的專利分析方法，在本書中被稱為什麼？", def: "1W 分析。" },
+  { term: "同時涉及兩欄位資料的專利分析方法，在本書中被稱為什麼？", def: "2W 分析。" },
+  { term: "利用「申請日」欄位所進行的「申請趨勢分析」，屬於1W分析或2W分析？", def: "1W 分析 (涉及 When)。" },
+  { term: "針對「申請人」欄位統計各申請人案件數量，以辨識主要申請人，此種分析屬於哪一類？", def: "1W 分析 (涉及 Who)。" },
+  { term: "同時分析「申請人」欄位（Who）與「分類號」欄位（What），是屬於哪一種分析？", def: "2W 分析。" },
+  { term: "同時分析「申請人」欄位與「申請日」欄位所進行的「申請人申請趨勢分析」，是屬於_____分析。", def: "2W" },
+  { term: "在2W分析中，以「申請人」為主、「分類號」為輔的分析稱為什麼？", def: "主要申請人之分類號分析。" },
+  { term: "在2W分析中，以「分類號」為主、「申請人」為輔的分析稱為什麼？", def: "主要分類號之申請人分析。" },
+  { term: "根據5W分析體系，理論上可形成多少類不同組合的2W分析方式？", def: "25 類 (5x5)。" },
+  { term: "在實務應用上，實際上常見的2W分析約有多少類？", def: "約 12 類。" },
+  { term: "為何涉及三個維度以上的3W分析在實務上相當少見？", def: "因為高維度的分析與圖表難以處理與呈現。" },
+  { term: "在件數計算中，只要某人列名於一件專利，不論該案是否還有其他發明人，該人都計為1件，此種方式稱為什麼？", def: "完整計數 (full counting)。" },
+  { term: "在件數計算中，一件專利所代表的1件，將依其所涉及的發明人人數平均分配，此種方式稱為什麼？", def: "分數計數 (fractional counting)。" },
+  { term: "一件專利若有n位發明人，採用分數計數時，每位發明人各計多少件？", def: "1/n 件。" },
+  { term: "完整計數傳達的分析意涵是什麼？", def: "發明人於所分析之專利案件中的出現次數。" },
+  { term: "分數計數傳達的分析意涵是什麼？", def: "發明人對於所分析之專利案件的整體貢獻程度。" },
+  { term: "完整計數的主要優點與缺點為何？", def: "優點是易於理解與計算，缺點是容易膨脹實際產出或貢獻程度。" },
+  { term: "分數計數的主要優點與缺點為何？", def: "優點是相對公平且無膨脹問題，缺點是計算較複雜且未必能真實反映實際貢獻。" },
+  { term: "所有發明人完整計數的總和，與實際專利案件總數的關係為何？", def: "總和通常大於實際專利案件數。" },
+  { term: "所有發明人分數計數的總和，與實際專利案件總數的關係為何？", def: "總和必然等於實際專利案件數。" },
+  { term: "為何本書不建議採用僅將專利歸屬於「第一」發明人/申請人/分類號的計數方式？", def: "因為列名第一位未必代表最大貢獻，可能僅因編排慣例或偶然。" },
+  { term: "在何種情境下，採用完整計數所造成的膨脹問題通常較為輕微？", def: "當計算對象於多數專利案件中僅出現一次時。" },
+  { term: "在何種情境下，採用分數計數通常可提供較為客觀的觀察結果？", def: "當專利案件多數包含多位發明人、申請人或大量分類號時。" },
+  { term: "同時使用完整計數與分數計數時，兩者可被視為界定了計算對象「真實貢獻程度」的什麼？", def: "上限（完整計數）與下限（分數計數）。" },
+  { term: "件數分析隱含了一項自身特有且關鍵的假設，即用以比較的「件」被假定具有相同的什麼？", def: "價值。" },
+  { term: "將「不同的專利案件視為具有等同價值」是件數分析中分析者不得不採取的假設，這提醒我們件數是一種高度簡化的衡量，其數量不等同於_____或_____。", def: "品質、價值" },
+  { term: "在排名方式中，依件數多寡賦予第1名至第N名的不重複名次，即使件數相同也強行區分名次，稱為什麼？", def: "不重複排名。" },
+  { term: "在排名方式中，當對象件數相同時，賦予其相同的名次，並將後續名次跳號處理，稱為什麼？", def: "重複排名。" },
+  { term: "若有兩位申請人件數相同並列第3名，在重複排名下，下一位申請人的名次應為第幾名？", def: "第 5 名。" },
+  { term: "當件數計算採用完整計數時，因為容易出現相同件數，通常採用哪種排名方式較為適合？", def: "重複排名。" },
+  { term: "當件數計算採用分數計數時，由於不易出現完全相同的件數值，通常採用哪種排名方式仍屬有效？", def: "不重複排名。" },
+  { term: "為何名次差距與件數差異之間不存在固定或線性的對應關係？", def: "因為名次是對件數的高度簡化，僅能傳達順序高低，無法反映實際差距大小。" },
+  { term: "「前 N 名」的定義是什麼？", def: "指名次由第 1 名至第 N 名的所有對象。" },
+  { term: "「前 N 大」的定義是什麼？", def: "指包含其件數屬於最高的 N 個件數值的對象。" },
+  { term: "在有並列名次的情況下，為何「前 N 大」所界定的對象比「前 N 名」更為穩定？", def: "因為「前 N 大」是以數量而非名次為篩選標準，不易受排名方式差異的影響。" },
+  { term: "在重複排名下，假設申請人A、B、C、D的件數分別是20、10、5、5，「前3名」包含哪些申請人？", def: "A、B、C、D 四位申請人 (因為C和D並列第3名)。" },
+  { term: "假設申請人A、B、C、D的件數分別是20、10、5、5，「前三大」包含哪些申請人？", def: "A、B、C、D 四位申請人 (因為前三大件數值為20、10、5)。" },
+  { term: "除了「前N大」與「前N名」外，書中提及了哪兩種其他篩選分析對象的方式？", def: "分級或分群、以及依件數佔比篩選。" }
+];
+
+let order = [...CARDS.keys()];
+let i = 0;
+let flipped = false;
+
+const front = document.getElementById("front");
+const back = document.getElementById("back");
+const label = document.getElementById("label");
+const countPill = document.getElementById("countPill");
+const progressPill = document.getElementById("progressPill");
+const sidePill = document.getElementById("sidePill");
+
+function render() {
+  countPill.textContent = `${order.length} cards`;
+  progressPill.textContent = `第 ${i+1} / ${order.length} 題`;
+  sidePill.textContent = flipped ? "答案" : "問題";
+
+  const c = CARDS[order[i]];
+  if (flipped) {
+    label.textContent = "答案";
+    back.textContent = c.def;
+    back.style.display = "block";
+    front.style.display = "none";
+  } else {
+    label.textContent = "問題";
+    front.textContent = c.term;
+    front.style.display = "block";
+    back.style.display = "none";
+  }
+}
+
+function flip() { flipped = !flipped; render(); }
+function next() { i = (i + 1) % order.length; flipped = false; render(); }
+function prev() { i = (i - 1 + order.length) % order.length; flipped = false; render(); }
+
+function shuffle() {
+  // Fisher-Yates
+  for (let k = order.length - 1; k > 0; k--) {
+    const j = Math.floor(Math.random() * (k + 1));
+    [order[k], order[j]] = [order[j], order[k]];
+  }
+  i = 0; flipped = false; render();
+}
+function resetOrder() { order = [...CARDS.keys()]; i = 0; flipped = false; render(); }
+
+document.getElementById("card").onclick = flip;
+document.addEventListener("keydown", e => {
+  const tag = (document.activeElement?.tagName || "").toLowerCase();
+  if (tag === "input" || tag === "textarea" || tag === "select") return;
+
+  if (e.key === " ") { e.preventDefault(); flip(); }
+  if (e.key === "ArrowRight") next();
+  if (e.key === "ArrowLeft") prev();
+  if (e.key.toLowerCase() === "s") shuffle();
+  if (e.key.toLowerCase() === "r") resetOrder();
+});
+
+render();
+</script>
+</body>
+</html>
