@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body{margin:0;font-family:system-ui,-apple-system,"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;background:#f6f7f8;color:#222}
+    .wrap{max-width:980px;margin:auto;padding:20px}
+    h1{margin:0 0 10px;font-size:20px}
+    .meta{font-size:13px;color:#555;margin-bottom:10px;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    .pill{display:inline-block;padding:4px 10px;border:1px solid #ddd;border-radius:999px;background:#fff}
+    .card{background:#fff;border-radius:14px;padding:28px;min-height:260px;box-shadow:0 6px 20px rgba(0,0,0,.08);cursor:pointer;user-select:none}
+    .label{font-size:12px;letter-spacing:.08em;color:#666;margin-bottom:8px}
+    .front{font-size:24px;font-weight:750;line-height:1.45;white-space:pre-wrap}
+    .back{font-size:18px;line-height:1.7;white-space:pre-wrap;display:none}
+    .controls{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;align-items:center}
+    button{padding:10px 14px;border-radius:10px;border:1px solid #ccc;background:#fff;cursor:pointer;font-size:14px}
+    button:hover{background:#f0f0f0}
+    .hint{font-size:12px;color:#666;margin-top:8px}
+  </style>
+</head>
+
+<body>
+<div class="wrap">
+  <div class="meta">
+    <span class="pill" id="countPill"></span>
+    <span class="pill" id="progressPill"></span>
+    <span class="pill" id="sidePill"></span>
+  </div>
+
+  <div class="card" id="card" tabindex="0" role="button" aria-label="Flashcard">
+    <div class="label" id="label">問題</div>
+    <div class="front" id="front"></div>
+    <div class="back" id="back"></div>
+  </div>
+
+  <div class="controls">
+    <button type="button" onclick="prev()">← 上一題</button>
+    <button type="button" onclick="flip()">翻面</button>
+    <button type="button" onclick="next()">下一題 →</button>
+    <button type="button" onclick="shuffle()">隨機</button>
+    <button type="button" onclick="resetOrder()">重設順序</button>
+  </div>
+
+  <div class="hint">
+    點擊卡片或按 Space 翻面 ｜ ← / → 換題 ｜ S 隨機 ｜ R 重設
+  </div>
+</div>
+
+<script>
+const CARDS = [
+  { term: "專利分析方法中，僅涉及單一欄位資料的分析稱為什麼？", def: "1W 分析。" },
+  { term: "專利分析方法中，結合兩個欄位進行交叉觀察的分析稱為什麼？", def: "2W 分析。" },
+  { term: "1W 件數分析可依據其處理的 W 欄位資料特性，歸納為哪兩大類？", def: "針對「單項數據 W 欄位」的分析，以及針對「多項數據 W 欄位」的分析。" },
+  { term: "對於每一件專利，在不為空白的情形下，某欄位僅包含一項數據，此種欄位被稱為什麼？", def: "單項數據之 W 欄位。" },
+  { term: "請舉出屬於「單項數據 W 欄位」的兩個號碼欄位範例。", def: "申請號、公開號、證書號、公告號等（但不含優先權號）。" },
+  { term: "在專利案件中，「審查人」欄位（Who）通常屬於哪一類數據欄位？", def: "單項數據的 W 欄位，因每件專利僅列名一位審查人。" },
+  { term: "「申請日」、「公開日」、「公告日」等日期欄位，原則上屬於 _____ 的 W 欄位。", def: "單項數據" },
+  { term: "在 1W 件數分析中，最常被使用的單項數據欄位是哪一種？", def: "各種日期欄位（When）。" },
+  { term: "對於每一件專利，在不為空白的情形下，某欄位可能包含一項以上的數據，此種欄位被稱為什麼？", def: "多項數據之 W 欄位。" },
+  { term: "請舉出屬於「多項數據 W 欄位」的兩個 Who 欄位範例。", def: "「發明人」與「申請人」欄位。" },
+  { term: "一件專利案件常被賦予多個 IPC 或 CPC 分類號，因此「專利分類號」欄位（What）屬於 _____ 的 W 欄位。", def: "多項數據" },
+  { term: "為何「優先權號」與「優先權日」欄位不屬於單項數據欄位？", def: "因為一件專利可能主張多個優先權，故這兩個欄位可能包含多項數據。" },
+  { term: "在多項數據 W 欄位中，用以區隔不同數據項目的是什麼？", def: "分隔符號（separator），最常見者為「;」。" },
+  { term: "若在資料清理階段未統一多項數據欄位中不一致的分隔符號，將對後續分析造成什麼影響？", def: "會影響後續件數統計的正確性，例如將「申請人 A;申請人 B」誤判為單一申請人。" },
+  { term: "在實際進行件數統計前，為使數據符合分析目的與方法的要求，通常需要先進行什麼作業？", def: "前處理（pre-processing）。" },
+  { term: "將日期數據由 YYYYMMDD 的文字格式轉換為標準化的日期格式 YYYY/MM/DD，屬於哪一種常見的前處理作業？", def: "格式轉換。" },
+  { term: "自每一 IPC 分類號中擷取三階或四階部分，或自日期中擷取年份，屬於哪一種常見的前處理作業？", def: "擷取其中部分數據。" },
+  { term: "在實務上，針對單項數據的日期欄位所進行的 1W 件數分析，常被稱為什麼？", def: "趨勢分析。" },
+  { term: "在單項數據 1W 件數分析的流程中，「小計」指的是什麼？", def: "針對欄位所包含的不同數據項目，分別計算其出現次數。" },
+  { term: "在趨勢分析中，若分析目的在於觀察研發活動，原則上應以哪種日期欄位作為分析對象？", def: "申請日（Application Date）。" },
+  { term: "為何觀察研發活動應以「申請日」為宜？", def: "因為相較於公開日或公告日，「申請日」更貼近研發活動完成的時點。" },
+  { term: "以「申請日」進行趨勢分析時，趨勢圖在分析時點前若干年常出現件數快速下滑的現象，其主要原因為何？", def: "該期間的申請案件尚未公開或公告，因「案件空窗期」而無法被檢索到。" },
+  { term: "專利申請趨勢圖中，因「案件空窗期」造成的下滑期間，其長度一般約為多久？", def: "約 2 至 3 年。" },
+  { term: "在判讀趨勢分析圖時，除了長期趨勢，還應特別留意什麼？", def: "長期趨勢之間的轉折時點。" },
+  { term: "趨勢分析圖中的轉折時點，往往反映了哪些情況？", def: "研發方向轉變、技術突破、政策調整或重大事件發生等。" },
+  { term: "在實務上，針對「發明人」、「申請人」、「分類號」等多項數據欄位所進行的 1W 件數分析，常被稱為什麼？", def: "排名分析。" },
+  { term: "多項數據 1W 件數分析與單項數據分析相比，主要差異在於需先進行哪一項前處理作業？", def: "將多項數據「拆解」為單項數據。" },
+  { term: "在多項數據 1W 件數分析中，「每一數據出現一次即計為 1 件」的計數方式稱為什麼？", def: "完整計數（complete count）。" },
+  { term: "為降低單一專利因擁有多個數據項目（如分類號）而造成的結果膨脹效果，可改採哪種計數方式？", def: "分數計數（fractional count）。" },
+  { term: "進行分數計數時，在拆解多項數據後，需對每一數據項目進行什麼前處理？", def: "比例賦予（依各專利所包含的數據總數，賦予一適當比例）。" },
+  { term: "進行分數計數時，小計的方式應由「出現次數小計」改為_____。", def: "比例加總小計" },
+  { term: "當被排名對象件數相同時，仍被分別賦予不重複的連續名次，此種排名方式稱為什麼？", def: "不重複排名。" },
+  { term: "當被排名對象件數相同時，賦予其相同的名次，並將後續名次跳號處理，此種排名方式稱為什麼？", def: "重複排名。" },
+  { term: "在重複排名下，若有三位對象同列第 3 名，則下一位對象將被賦予第幾名？", def: "第 6 名。" },
+  { term: "採用完整計數時，因件數值為整數易出現相同件數，通常採用哪種排名方式較為合理？", def: "重複排名。" },
+  { term: "採用分數計數時，因件數值帶有小數不易完全相同，使用哪種排名方式仍屬有效？", def: "不重複排名。" },
+  { term: "件數排名的主要限制為何？", def: "名次差距不反映件數差異的大小。" },
+  { term: "名詞解釋：「前 N 名」", def: "指名次由第 1 名至第 N 名的所有對象，其涵蓋的對象數量可能因排名方式而異。" },
+  { term: "名詞解釋：「前 N 大」", def: "指包含件數屬於最高的 N 個件數值的對象，其涵蓋的對象較不受排名方式影響。" },
+  { term: "相較於「前 N 名」，哪一個概念所界定的對象範圍較為穩定，不易受排名方式差異的影響？", def: "「前 N 大」。" },
+  { term: "有一種特殊的 1W 分析，其關注點在於各專利案件的 W 欄位中分別包含了多少項數據，此分析稱為什麼？", def: "項數分析。" },
+  { term: "項數分析主要針對哪一類數據的 W 欄位進行？", def: "多項數據的 W 欄位。" },
+  { term: "分析某機構專利案件的「發明人」欄位項數，可用來推斷其研發活動的何種特性？", def: "研發型態或模式（例如是仰賴少數發明人或大型團隊合作）。" },
+  { term: "分析專利案件的「分類號」欄位項數，可用來反映其創作的何種屬性？", def: "技術內容的多元程度。" },
+  { term: "在項數分析中，當案件數量龐大時，常用什麼數值來反映整體數量分布的概況？", def: "平均值。" },
+  { term: "若欲呈現項數分析的完整分布情形，而非僅看平均值，可採用何種方式？", def: "對不同項數值的出現次數進行小計。" },
+  { term: "「分數計數」中賦予的「適當比例」與「項數分析」之間有何關聯？", def: "某專利在項數分析中得到的「項數」，即為該專利在分數計數中計算比例時所使用的分母。" },
+  { term: "對 N 個對象進行排名時，在重複排名下，件數最少者的名次是否必然為第 N 名？", def: "不必然，因為若前方有相同名次，後續名次會跳號，導致最末名次可能大於 N。" },
+  { term: "同一對象的「不重複排名」名次，與其「重複排名」名次相比，關係為何？", def: "不重複排名的名次數值，必然大於或等於其重複排名的名次數值。" },
+  { term: "若一份專利分析報告未說明排名方式，如何從名次資訊中判斷其採用的是重複排名還是不重複排名？", def: "觀察名次是否有跳號現象，若有相同名次且後續名次不連續（跳號），則為重複排名。" },
+  { term: "若某技術領域的專利案件多數僅列名一位申請人，可能反映何種研發活動模式？", def: "可能反映該領域的研發主要由單一機構獨立完成，較少跨機構的合作。" },
+  { term: "若一機構的專利案件多數包含較多參考文獻，可能反映其創作屬性有何特點？", def: "可能反映其創作多屬於在成熟技術領域的改良或延伸，而非處於萌芽階段的開創性發明。" }
+
+];
+
+let order = [...CARDS.keys()];
+let i = 0;
+let flipped = false;
+
+const front = document.getElementById("front");
+const back = document.getElementById("back");
+const label = document.getElementById("label");
+const countPill = document.getElementById("countPill");
+const progressPill = document.getElementById("progressPill");
+const sidePill = document.getElementById("sidePill");
+
+function render() {
+  countPill.textContent = `${order.length} cards`;
+  progressPill.textContent = `第 ${i+1} / ${order.length} 題`;
+  sidePill.textContent = flipped ? "答案" : "問題";
+
+  const c = CARDS[order[i]];
+  if (flipped) {
+    label.textContent = "答案";
+    back.textContent = c.def;
+    back.style.display = "block";
+    front.style.display = "none";
+  } else {
+    label.textContent = "問題";
+    front.textContent = c.term;
+    front.style.display = "block";
+    back.style.display = "none";
+  }
+}
+
+function flip() { flipped = !flipped; render(); }
+function next() { i = (i + 1) % order.length; flipped = false; render(); }
+function prev() { i = (i - 1 + order.length) % order.length; flipped = false; render(); }
+
+function shuffle() {
+  // Fisher-Yates
+  for (let k = order.length - 1; k > 0; k--) {
+    const j = Math.floor(Math.random() * (k + 1));
+    [order[k], order[j]] = [order[j], order[k]];
+  }
+  i = 0; flipped = false; render();
+}
+function resetOrder() { order = [...CARDS.keys()]; i = 0; flipped = false; render(); }
+
+document.getElementById("card").onclick = flip;
+document.addEventListener("keydown", e => {
+  const tag = (document.activeElement?.tagName || "").toLowerCase();
+  if (tag === "input" || tag === "textarea" || tag === "select") return;
+
+  if (e.key === " ") { e.preventDefault(); flip(); }
+  if (e.key === "ArrowRight") next();
+  if (e.key === "ArrowLeft") prev();
+  if (e.key.toLowerCase() === "s") shuffle();
+  if (e.key.toLowerCase() === "r") resetOrder();
+});
+
+render();
+</script>
+</body>
+</html>
