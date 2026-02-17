@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body{margin:0;font-family:system-ui,-apple-system,"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;background:#f6f7f8;color:#222}
+    .wrap{max-width:980px;margin:auto;padding:20px}
+    h1{margin:0 0 10px;font-size:20px}
+    .meta{font-size:13px;color:#555;margin-bottom:10px;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    .pill{display:inline-block;padding:4px 10px;border:1px solid #ddd;border-radius:999px;background:#fff}
+    .card{background:#fff;border-radius:14px;padding:28px;min-height:260px;box-shadow:0 6px 20px rgba(0,0,0,.08);cursor:pointer;user-select:none}
+    .label{font-size:12px;letter-spacing:.08em;color:#666;margin-bottom:8px}
+    .front{font-size:24px;font-weight:750;line-height:1.45;white-space:pre-wrap}
+    .back{font-size:18px;line-height:1.7;white-space:pre-wrap;display:none}
+    .controls{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;align-items:center}
+    button{padding:10px 14px;border-radius:10px;border:1px solid #ccc;background:#fff;cursor:pointer;font-size:14px}
+    button:hover{background:#f0f0f0}
+    .hint{font-size:12px;color:#666;margin-top:8px}
+  </style>
+</head>
+
+<body>
+<div class="wrap">
+  <div class="meta">
+    <span class="pill" id="countPill"></span>
+    <span class="pill" id="progressPill"></span>
+    <span class="pill" id="sidePill"></span>
+  </div>
+
+  <div class="card" id="card" tabindex="0" role="button" aria-label="Flashcard">
+    <div class="label" id="label">問題</div>
+    <div class="front" id="front"></div>
+    <div class="back" id="back"></div>
+  </div>
+
+  <div class="controls">
+    <button type="button" onclick="prev()">← 上一題</button>
+    <button type="button" onclick="flip()">翻面</button>
+    <button type="button" onclick="next()">下一題 →</button>
+    <button type="button" onclick="shuffle()">隨機</button>
+    <button type="button" onclick="resetOrder()">重設順序</button>
+  </div>
+
+  <div class="hint">
+    點擊卡片或按 Space 翻面 ｜ ← / → 換題 ｜ S 隨機 ｜ R 重設
+  </div>
+</div>
+
+<script>
+const CARDS = [
+  { term: "專利分析中，從「資料階段」進入「資訊階段」的核心轉化目標為何？", def: "將「資料」轉化為具有比較意義與解讀價值的「資訊」。" }, 
+  { term: "1W 件數分析最核心的統計機制為何？", def: "小計。" }, 
+  { term: "在 Excel 中進行 1W 件數分析主要可透過哪兩種功能？", def: "(1)「小計」功能；(2)「樞紐分析表」功能。" },
+  { term: "Excel 的「小計」功能不適合直接應用於哪種格式的欄位？", def: "日期格式欄位。" }, 
+  { term: "若分析對象為「多項數據」欄位（如多位發明人），必須先進行什麼前處理才能進行統計？", def: "拆解，將其轉換為單項數據欄位。" },
+  { term: "使用 Excel「小計」功能前，分析對象欄位必須具備的兩個條件為何？", def: "該欄位需設有標題列，且需先經過排序。" },
+  { term: "使用 Excel「小計」功能時，為何必須先進行「排序」？", def: "使相同數據項目排列在相鄰列中，Excel 方能正確判斷群組並執行計數。" }, 
+  { term: "若未事先排序即執行 Excel「小計」中的「計數」，會導致什麼結果？", def: "導致計算結果錯誤（最常見的實務疏失之一）。" },
+  { term: "1W 件數分析在 Excel「小計」設定中，最常使用的函數為何？", def: "計數（舊版 Excel 稱為「項目個數」）。" },
+  { term: "如何單獨從 Excel「小計」結果中擷取運算數據而不帶入原始資料？", def: "使用「特殊目標 → 可見儲存格」功能再複製。" },
+  { term: "將複製的小計結果貼至新工作表時，應選擇哪種貼上方式？", def: "貼上值（以免帶入層級結構）。" },
+  { term: "Excel「樞紐分析表」功能主要係用於何種分析？", def: "多個欄位的交叉分析（即 2W 件數分析）。" },
+  { term: "相較於「小計」功能，樞紐分析表在 1W 分析中的主要優勢為何？", def: "不要求事先排序，且可直接對日期格式進行不同時間尺度的群組。" },
+  { term: "1W 分析中，應將分析對象欄位設定為樞紐分析表的哪一個核心設置？", def: "「列」。" },
+  { term: "在 1W 分析中，樞紐分析表的「值」（Value）設置應選擇哪種運算？", def: "計數。" },
+  { term: "在樞紐分析表中進行件數計數時，可以選擇哪些欄位作為「值」？", def: "實務上任何欄位皆可（甚至是「列」或「欄」本身），因其僅代表案件存在。" },
+  { term: "若原始資料異動，已建立的樞紐分析表會自動連動更新嗎？", def: "不會。" },
+  { term: "在視覺化趨勢圖中，圖形的橫軸通常對應樞紐分析表中的哪個部分？", def: "樞紐分析表中的「列」。" },
+  { term: "單項數據 1W 分析中最具代表性的分析類型為何？", def: "趨勢分析（針對日期欄位進行件數統計）。" },
+  { term: "文字格式的日期欄位，通常使用哪個 Excel 函數來擷取西元年？", def: "LEFT() 函數（例如擷取最左側四碼）。" },
+  { term: "對於文字格式日期進行趨勢圖製作前，排序方向應如何設定？", def: "從 A 到 Z（即由舊至新排序）。" },
+  { term: "製作逐年申請趨勢圖時，最常選用的圖表類型為何？", def: "折線圖。" },
+  { term: "趨勢分析的解讀重點不在趨勢本身，而在於揭示什麼？", def: "異常時點與關鍵區段。" },
+  { term: "為何近年的申請趨勢可能呈現下滑？", def: "受限於「案件空窗期」所導致的數據不足。" },
+  { term: "樞紐分析表中出現無效群組，其成因通常為何？", def: "選取的資料範圍中包含不具數據的空白儲存格。" },
+  { term: "多項數據 1W 分析中（如發明人、IPC）最具代表性的分析類型為何？", def: "排名分析。" },
+  { term: "排名分析的主要觀察重點為何？", def: "不同數據項目的相對重要性與分布情形。" },
+  { term: "「拆解」多項數據欄位的核心邏輯為何？", def: "將水平排列的多項數據轉換為垂直排列、一項數據一列的形式。" },
+  { term: "實務上進行多項數據拆解時，常用哪種文書處理程式進行字元取代？", def: "Microsoft Word。" },
+  { term: "在 Word 中執行拆解作業時，應將分隔符號取代為哪種特殊字元？", def: "段落標記（代碼為 ^p）。" },
+  { term: "使用 Word 拆解多項數據時，貼上資料應選擇何種貼上選項？", def: "純文字方式（只保留文字），避免自動轉為表格形式。" },
+  { term: "若發明人欄位中同時存在「; 」（區隔中英文名稱）與「;」（區隔不同發明人），應如何處理取代順序？", def: "先將較長的「; 」取代為替代符號，再將單一「;」取代為段落標記。" },
+  { term: "Word 處理純文字資料的大小上限約為多少？", def: "約 32MB。" },
+  { term: "若資料量龐大超出 Word 處理上限，建議採取的因應方式為何？", def: "將資料分割為數個區段處理後再合併，或改用其他文書處理程式。" },
+  { term: "排名分析中，為了觀察件數最顯著的項目，排序通常如何設定？", def: "從最大到最小排序。" },
+  { term: "如何快速從統計結果中擷取件數最高的前 10 項數據？", def: "使用篩選功能中的「數值篩選 → 前 10 項」。" },
+  { term: "Excel 中計算名次且將件數相同者並列名次的函數為何？", def: "RANK() 或 RANK.EQ()。" },
+  { term: "在 Excel 排名函數中，$B$2:$B$2319 屬於哪一種參照位址？", def: "絕對參照位址。" },
+  { term: "使用 RANK 函數進行排名時，為何比較範圍必須使用絕對參照？", def: "確保公式向下填滿時，比較的基準範圍不會隨列號變動而導致錯誤。" },
+  { term: "排名分析與件數分布分析的進階價值在於判讀什麼產出結構？", def: "產出結構呈現集中、分散，或長尾型態。" },
+  { term: "何謂件數分布的「長尾結構」？", def: "極少數核心項目高度活躍，伴隨大量僅偶發參與的邊緣項目。" },
+  { term: "分析發明人分佈呈現長尾結構，有助於評估組織的哪種風險？", def: "對特定關鍵人才的依賴風險。" },
+  { term: "若該欄位未排序即執行 Excel「小計」功能，會產生何種影響？", def: "Excel 將無法正確識別相同群組，導致產生重複的分組計數結果。" },
+  { term: "為何 IPC 三階分類號（如 G06F）的統計次數通常會大於實際件數？", def: "因為同一案件可能具備多個同屬三階的分類號，產生膨脹現象。" }
+];
+
+let order = [...CARDS.keys()];
+let i = 0;
+let flipped = false;
+
+const front = document.getElementById("front");
+const back = document.getElementById("back");
+const label = document.getElementById("label");
+const countPill = document.getElementById("countPill");
+const progressPill = document.getElementById("progressPill");
+const sidePill = document.getElementById("sidePill");
+
+function render() {
+  countPill.textContent = `${order.length} cards`;
+  progressPill.textContent = `第 ${i+1} / ${order.length} 題`;
+  sidePill.textContent = flipped ? "答案" : "問題";
+
+  const c = CARDS[order[i]];
+  if (flipped) {
+    label.textContent = "答案";
+    back.textContent = c.def;
+    back.style.display = "block";
+    front.style.display = "none";
+  } else {
+    label.textContent = "問題";
+    front.textContent = c.term;
+    front.style.display = "block";
+    back.style.display = "none";
+  }
+}
+
+function flip() { flipped = !flipped; render(); }
+function next() { i = (i + 1) % order.length; flipped = false; render(); }
+function prev() { i = (i - 1 + order.length) % order.length; flipped = false; render(); }
+
+function shuffle() {
+  // Fisher-Yates
+  for (let k = order.length - 1; k > 0; k--) {
+    const j = Math.floor(Math.random() * (k + 1));
+    [order[k], order[j]] = [order[j], order[k]];
+  }
+  i = 0; flipped = false; render();
+}
+function resetOrder() { order = [...CARDS.keys()]; i = 0; flipped = false; render(); }
+
+document.getElementById("card").onclick = flip;
+document.addEventListener("keydown", e => {
+  const tag = (document.activeElement?.tagName || "").toLowerCase();
+  if (tag === "input" || tag === "textarea" || tag === "select") return;
+
+  if (e.key === " ") { e.preventDefault(); flip(); }
+  if (e.key === "ArrowRight") next();
+  if (e.key === "ArrowLeft") prev();
+  if (e.key.toLowerCase() === "s") shuffle();
+  if (e.key.toLowerCase() === "r") resetOrder();
+});
+
+render();
+</script>
+</body>
+</html>
